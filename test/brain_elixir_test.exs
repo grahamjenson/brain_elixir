@@ -12,4 +12,16 @@ defmodule BrainElixir.PerceptronTest do
     assert_receive 5
 
   end
+
+  test "charge will be removed after some time" do
+    {:ok, pid1} = BrainElixir.Perceptron.start_perceptron()
+
+    send pid1, {:add_charge, self, 2}
+    send pid1, {:get_charge, self}
+    assert_receive 2
+
+    :timer.sleep(20)
+    send pid1, {:get_charge, self}
+    assert_receive 0
+  end
 end

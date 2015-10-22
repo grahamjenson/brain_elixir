@@ -19,29 +19,49 @@ defmodule BrainElixir.Perceptron do
     active_time = 10
     receive do
       {:add_charge, from, charge} ->
-        IO.puts "add_charge to #{inspect self()}"
+        IO.puts "add_charge #{charge} to #{inspect self()}"
 
-        #filter_charges
-        new_charges = Map.put(charges, from, charge)
-        #increase charge
+        #add charge
+        charges = add_charge(charges, from, charge)
+
+        #remove_old_charges
+        #charges = filter_charges(charges, active_time)
 
         #fire_charge?
 
         #fire
 
-        perceptron_receive_message(synapses, new_charges)
+        perceptron_receive_message(synapses, charges)
       {:get_charge, from} ->
+        charges = filter_charges(charges, active_time)
         charge = current_charge(charges)
-        IO.puts "get_charge to #{inspect self()}"
+        IO.puts "get_charge to #{inspect self()} is #{charge}"
         send from, charge
         perceptron_receive_message(synapses, charges)
     end
   end
 
-  def current_charge(charges) do
-    Enum.reduce(Map.values(charges) , 0 , fn x,a -> x+a end)
+  def filter_charges(charges, active_time) do
+    IO.puts "HERE #{inspect charges}"
+    x = Enum.filter charges, fn {k, {charge, time_of_charge}} ->
+      IO.puts "#{current_micro_seconds} > #{time_of_charge + active_time}";
+      current_micro_seconds < (time_of_charge + active_time)
+    end
+    Enum.into x, %{}
   end
 
+  def add_charge(charges, from, charge) do
+    Map.put(charges, from, {charge, current_micro_seconds})
+  end
+
+  def current_charge(charges) do
+    Enum.reduce(Map.values(charges) , 0 , fn {charge, time}, acc -> charge + acc end)
+  end
+
+  def current_micro_seconds do
+    {mega, sec, micro} = :os.timestamp
+    (mega*1000000 + sec)*1000 + round(micro/1000)
+  end
   # def receive_charge(from, charge) do
   #   IO.puts "P #{@uuid} receive_charge #{charge} from #{from}"
   #   time = new Date().getTime()
