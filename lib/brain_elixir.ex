@@ -22,7 +22,7 @@ defmodule BrainElixir.Perceptron do
         IO.puts "add_charge #{charge} to #{inspect self()}"
 
         #add charge
-        charges = add_charge(charges, from, charge)
+        charges = add_charge(charges, from, charge, current_micro_seconds + active_time)
 
         #remove_old_charges
         #charges = filter_charges(charges, active_time)
@@ -33,7 +33,7 @@ defmodule BrainElixir.Perceptron do
 
         perceptron_receive_message(synapses, charges)
       {:get_charge, from} ->
-        charges = filter_charges(charges, active_time)
+        charges = filter_charges(charges)
         charge = current_charge(charges)
         IO.puts "get_charge to #{inspect self()} is #{charge}"
         send from, charge
@@ -41,17 +41,17 @@ defmodule BrainElixir.Perceptron do
     end
   end
 
-  def filter_charges(charges, active_time) do
+  def filter_charges(charges) do
     IO.puts "HERE #{inspect charges}"
-    x = Enum.filter charges, fn {k, {charge, time_of_charge}} ->
-      IO.puts "#{current_micro_seconds} > #{time_of_charge + active_time}";
-      current_micro_seconds < (time_of_charge + active_time)
+    x = Enum.filter charges, fn {k, {charge, charge_timeout}} ->
+      IO.puts "#{current_micro_seconds} > #{current_micro_seconds}";
+      current_micro_seconds < charge_timeout
     end
     Enum.into x, %{}
   end
 
-  def add_charge(charges, from, charge) do
-    Map.put(charges, from, {charge, current_micro_seconds})
+  def add_charge(charges, from, charge, charge_timeout) do
+    Map.put(charges, from, {charge, charge_timeout})
   end
 
   def current_charge(charges) do
