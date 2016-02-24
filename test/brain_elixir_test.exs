@@ -24,4 +24,10 @@ defmodule BrainElixir.PerceptronTest do
     send pid1, {:get_charge, self}
     assert_receive 0
   end
+
+  test "should fire messages to connected synapses" do
+    {:ok, pid1} = BrainElixir.Perceptron.start_perceptron(%{self => 0.1})
+    send pid1, {:add_charge, self, 0.3}
+    assert_receive {:add_charge, pid1, charge}
+  end
 end

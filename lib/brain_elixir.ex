@@ -14,45 +14,66 @@ defmodule BrainElixir.Perceptron do
     Task.start_link(fn -> perceptron_receive_message(synapses, %{}) end)
   end
 
-  defp perceptron_receive_message(synapses, charges) do
+  def perceptron_receive_message(synapses, charges) do
     activation_energy = 0.01
     active_time = 10
     receive do
       {:add_charge, from, charge} ->
-        IO.puts "add_charge #{charge} to #{inspect self()}"
+        IO.puts "add_charge #{charge} to #{inspect self()} from #{inspect from}"
 
         #add charge
-        charges = add_charge(charges, from, charge, current_micro_seconds + active_time)
+        charges = add_charge(charges, from, charge, current_micro_seconds)
 
         #remove_old_charges
-        #charges = filter_charges(charges, active_time)
+        charges = filter_charges(charges, active_time)
 
-        #fire_charge?
+        charge = current_charge(charges)
 
-        #fire
+        #fire_charges
+        fire_charges(charge, synapses, activation_energy)
 
+        #loop back
         perceptron_receive_message(synapses, charges)
       {:get_charge, from} ->
-        charges = filter_charges(charges)
+        charges = filter_charges(charges, active_time)
         charge = current_charge(charges)
         IO.puts "get_charge to #{inspect self()} is #{charge}"
         send from, charge
+
+        #loop back
         perceptron_receive_message(synapses, charges)
     end
   end
 
-  def filter_charges(charges) do
+
+  def add_charge(charges, from, charge, charge_set) do
+    Map.put(charges, from, {charge, charge_set})
+  end
+
+  def filter_charges(charges, active_time) do
     IO.puts "HERE #{inspect charges}"
-    x = Enum.filter charges, fn {k, {charge, charge_timeout}} ->
-      IO.puts "#{current_micro_seconds} > #{current_micro_seconds}";
-      current_micro_seconds < charge_timeout
+    x = Enum.filter charges, fn {k, {charge, charge_set}} ->
+      IO.puts "#{current_micro_seconds} > #{charge_set}";
+      current_micro_seconds < charge_set + active_time
     end
     Enum.into x, %{}
   end
 
-  def add_charge(charges, from, charge, charge_timeout) do
-    Map.put(charges, from, {charge, charge_timeout})
+  def fire_charges(charge, synapses, activation_energy) do
+    Enum.map synapses, fn {pid, weight} ->
+      charge_to_send = calculate_charge(charge , weight)
+      if Kernel.abs(charge_to_send) > activation_energy do
+        send pid, {:add_charge, self, charge_to_send}
+      end
+    end
   end
+
+  def calculate_charge(value, weight) do
+    value * weight
+    # #weight * sigmoid function weight * (1 / (1+ Math.pow(Math.E, - value)))
+  end
+
+
 
   def current_charge(charges) do
     Enum.reduce(Map.values(charges) , 0 , fn {charge, time}, acc -> charge + acc end)
@@ -62,49 +83,19 @@ defmodule BrainElixir.Perceptron do
     {mega, sec, micro} = :os.timestamp
     (mega*1000000 + sec)*1000 + round(micro/1000)
   end
+
   # def receive_charge(from, charge) do
   #   IO.puts "P #{@uuid} receive_charge #{charge} from #{from}"
   #   time = new Date().getTime()
   #   @increase_charge(from, charge)
   #   current_charge = @current_charge()
   #   for to, weight of @synapses
-  #     charge_to_send = @calculate_charge(current_charge, weight)
-  #     if Math.abs(charge_to_send) > @activation_energy
-  #       @brain.send_charge(@uuid, to, charge_to_send)
+  #
 
   # end
 
-  # def increase_charge(from, value) do
-  #   #this is a simple little function that removes the charge
-  #   #TODO make this a smooth function so charge decreases slowly
 
-  #   @current_chargers[from] = value
-  #   timer = bb.delay(@active_time)
-  #   timer.cancellable()
-  #   timer.catch(bb.CancellationError, (e) ->
-  #     IO.puts e
-  #   )
 
-  #   if @timers[from]
-  #     @timers[from].cancel()
-
-  #   @timers[from] = timer
-
-  #   timer.then( =>
-  #     delete @current_chargers[from]
-  #     delete @timers[from]
-  #     @current_charge()
-  #   )
-  #   .catch(bb.CancellationError, (e) ->
-  #     IO.puts e
-  #   )
-
-  # end
-
-  # def calculate_charge(value, weight) do
-  #   return value * weight
-  #   # #weight * sigmoid function weight * (1 / (1+ Math.pow(Math.E, - value)))
-  # end
 
   # ####################################
   # ###       Backpropagation        ###
